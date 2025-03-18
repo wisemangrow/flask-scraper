@@ -13,7 +13,7 @@ import time
 
 app = Flask(__name__)
 
-WEBHOOK_URL = os.getenv("PRODUCTION_URL")
+WEBHOOK_URL = os.getenv("https://n8n.patentlawprofessor.com/webhook/automate")
 
 class USCCourtScraper:
     def __init__(self):
