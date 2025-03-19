@@ -18,13 +18,14 @@ DELAY_SHORT = 2
 DELAY_LONG = 5
 
 # Load Webhook URL from environment variables
-WEBHOOK_URL = "https://n8n.patentlawprofessor.com/webhook/automate"  # Make sure to set this in your environment
+WEBHOOK_URL = "https://n8n.patentlawprofessor.com/webhook/automate"
 
 class USCCourtScraper:
-    def __init__(self):
+    def __init__(self, target_date):
         self.url = 'https://www.cafc.uscourts.gov/home/case-information/opinions-orders/'
         self.driver = self._initialize_driver()
         self.all_pdf_links = []
+        self.target_date = target_date
 
     def _initialize_driver(self):
         """Initialize Selenium WebDriver with Chrome options (headless mode)."""
@@ -43,15 +44,13 @@ class USCCourtScraper:
         time.sleep(DELAY_LONG)  # Allow page to load
 
     def filter_with_origin_and_current_date(self):
-        """Filter the table by current date and CFC origin."""
-        current_date = datetime.now().strftime("%m/%d/%Y")
-
+        """Filter the table by provided date and CFC origin."""
         try:
             date_field = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.ID, "table_1_range_from_0"))
             )
             date_field.clear()
-            date_field.send_keys(current_date)
+            date_field.send_keys(self.target_date)  # Use provided date
             date_field.send_keys(Keys.RETURN)
 
             # Select "CFC" from the origin filter
@@ -83,7 +82,7 @@ class USCCourtScraper:
             pdf_links = []
             for row in rows:
                 try:
-                    pdf_link = row.find_elements(By.TAG_NAME, "td")[-1].find_element(By.TAG_NAME, "a").get_attribute("href")
+                    pdf_link = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
                     pdf_links.append(pdf_link)
                 except Exception:
                     continue  # Skip rows without PDFs
@@ -149,7 +148,11 @@ def send_file_urls(pdf_links):
 @app.route("/run-scraper", methods=["POST"])
 def run_scraper():
     """API endpoint to trigger the scraper from n8n."""
-    scraper = USCCourtScraper()
+    data = request.get_json()
+    target_date = data.get("date", datetime.now().strftime("%m/%d/%Y"))
+    print(target_date)
+
+    scraper = USCCourtScraper(target_date)
     pdf_links = scraper.run()
     
     response = send_file_urls(pdf_links)

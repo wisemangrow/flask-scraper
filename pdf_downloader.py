@@ -47,7 +47,7 @@ class USCCourtScraper:
     def filter_with_origin_and_current_date(self):
         """Filter the table by current date and CFC origin."""
         current_date = datetime.now().strftime("%m/%d/%Y")
-        # current_date = '02/10/2025' # For testing purpose
+        current_date = '03/18/2025' # For testing purpose
         date_field = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.ID, "table_1_range_from_0"))
         )
@@ -81,7 +81,7 @@ class USCCourtScraper:
             pdf_links = []
             for row in rows:
                 try:
-                    pdf_link = row.find_elements(By.TAG_NAME, "td")[-1].find_element(By.TAG_NAME, "a").get_attribute("href")
+                    pdf_link = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
                     pdf_links.append(pdf_link)
                 except Exception as e:
                     print("No more pdfs are found")
