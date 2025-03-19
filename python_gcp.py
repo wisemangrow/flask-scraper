@@ -18,7 +18,7 @@ DELAY_SHORT = 2
 DELAY_LONG = 5
 
 # Load Webhook URL from environment variables
-WEBHOOK_URL = "https://n8n.patentlawprofessor.com"  # Make sure to set this in your environment
+WEBHOOK_URL = "https://n8n.patentlawprofessor.com/webhook/automate"  # Make sure to set this in your environment
 
 class USCCourtScraper:
     def __init__(self):
