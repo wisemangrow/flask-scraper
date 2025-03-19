@@ -18,7 +18,7 @@ DELAY_SHORT = 2
 DELAY_LONG = 5
 
 # Load Webhook URL from environment variables
-WEBHOOK_URL = "http://10.128.0.2:5678/webhook/automate"
+WEBHOOK_URL = "http://127.0.0.1:5678/webhook/automate"
 
 class USCCourtScraper:
     def __init__(self, target_date):
