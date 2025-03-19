@@ -14,6 +14,9 @@ import time
 
 app = Flask(__name__)
 
+DELAY_SHORT = 2
+DELAY_LONG = 5
+
 # Load Webhook URL from environment variables
 WEBHOOK_URL = "https://n8n.patentlawprofessor.com"  # Make sure to set this in your environment
 
@@ -37,7 +40,7 @@ class USCCourtScraper:
     def open_website(self):
         """Open the court's website."""
         self.driver.get(self.url)
-        time.sleep(2)  # Allow page to load
+        time.sleep(DELAY_LONG)  # Allow page to load
 
     def filter_with_origin_and_current_date(self):
         """Filter the table by current date and CFC origin."""
@@ -64,7 +67,7 @@ class USCCourtScraper:
             cfc_option.click()
 
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
+            time.sleep(DELAY_LONG)
 
         except Exception as e:
             print(f"Error filtering data: {e}")
@@ -102,7 +105,7 @@ class USCCourtScraper:
                     EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_next"]'))
                 )
                 next_button.click()
-                time.sleep(5)  # Allow next page to load
+                time.sleep(DELAY_LONG)  # Allow next page to load
             except Exception:
                 print("No more pages.")
                 break
@@ -111,7 +114,7 @@ class USCCourtScraper:
         """Run the full scraping process."""
         self.open_website()
         self.filter_with_origin_and_current_date()
-        time.sleep(2)
+        time.sleep(DELAY_LONG)
         self.paginate_and_scrape()
         self.driver.quit()
         return self.all_pdf_links
