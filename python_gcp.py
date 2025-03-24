@@ -85,10 +85,11 @@ class USCCourtScraper:
             statuses = []
             for row in rows:
                 try:
-                    origin = row.find_elements(By.TAG_NAME, "td")[-3].text
-                    case_name = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").text
-                    pdf_link = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
-                    status = row.find_elements(By.TAG_NAME, "td")[-1].text
+                    td_element = row.find_elements(By.TAG_NAME, "td")
+                    origin = td_element[-3].text
+                    case_name = td_element[-2].find_element(By.TAG_NAME, "a").text
+                    pdf_link = td_element[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
+                    status = td_element[-1].text
                     origins.append(origin)
                     case_names.append(case_name)
                     pdf_links.append(pdf_link)
@@ -116,8 +117,8 @@ class USCCourtScraper:
         }
         """Iterate through all pages and collect PDF links."""
         while True:
-            page_data = self.extract_pdf_links()["pdf_links"]
-            if not page_data:
+            page_data = self.extract_pdf_links()
+            if not page_data["pdf_links"]:
                 break
 
             all_data["origins"].extend(page_data["origins"])
