@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 DELAY_SHORT = 2
-DELAY_LONG = 5
+DELAY_LONG = 3
 
 # Load Webhook URL from environment variables
 WEBHOOK_URL = "http://127.0.0.1:5678/webhook/automate"
@@ -54,16 +54,16 @@ class USCCourtScraper:
             date_field.send_keys(Keys.RETURN)
 
             # Select "CFC" from the origin filter
-            origin_xpath = '//*[@id="table_1_2_filter"]/span/div/button'
-            select_origin_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, origin_xpath))
-            )
-            select_origin_button.click()
+            # origin_xpath = '//*[@id="table_1_2_filter"]/span/div/button'
+            # select_origin_button = WebDriverWait(self.driver, 10).until(
+            #     EC.element_to_be_clickable((By.XPATH, origin_xpath))
+            # )
+            # select_origin_button.click()
 
-            cfc_option = WebDriverWait(self.driver, 2).until(
-                EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[7]/a'))
-            )
-            cfc_option.click()
+            # cfc_option = WebDriverWait(self.driver, 2).until(
+            #     EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[7]/a'))
+            # )
+            # cfc_option.click()
 
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(DELAY_LONG)
@@ -79,24 +79,52 @@ class USCCourtScraper:
             )
             rows = table_body.find_elements(By.TAG_NAME, "tr")
             
+            origins = []
+            case_names = []
             pdf_links = []
+            statuses = []
             for row in rows:
                 try:
+                    origin = row.find_elements(By.TAG_NAME, "td")[-3].text
+                    case_name = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").text
                     pdf_link = row.find_elements(By.TAG_NAME, "td")[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
+                    status = row.find_elements(By.TAG_NAME, "td")[-1].text
+                    origins.append(origin)
+                    case_names.append(case_name)
                     pdf_links.append(pdf_link)
+                    statuses.append(status)
                 except Exception:
                     continue  # Skip rows without PDFs
 
-            return pdf_links
+            return {
+                "origins": origins,
+                "case_names": case_names,
+                "pdf_links": pdf_links,
+                "statuses": statuses
+            }
+
         except Exception as e:
             print(f"Error extracting PDF links: {e}")
-            return []
+            return {}
 
     def paginate_and_scrape(self):
+        all_data = {
+            "origins": [],
+            "case_names": [],
+            "pdf_links": [],
+            "statuses": []
+        }
         """Iterate through all pages and collect PDF links."""
         while True:
-            self.all_pdf_links.extend(self.extract_pdf_links())
-            print(f"Collected {len(self.all_pdf_links)} PDF links so far...")
+            page_data = self.extract_pdf_links()
+            if not page_data:
+                break
+
+            all_data["origins"].extend(page_data["origins"])
+            all_data["case_names"].extend(page_data["case_names"])
+            all_data["pdf_links"].extend(page_data["pdf_links"])
+            all_data["statuses"].extend(page_data["statuses"])
+            print(f"Collected {len(all_data['pdf_links'])} PDF links so far...")
 
             try:
                 self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -109,29 +137,34 @@ class USCCourtScraper:
                 print("No more pages.")
                 break
 
+        return all_data
+
     def run(self):
         """Run the full scraping process."""
         self.open_website()
         self.filter_with_origin_and_current_date()
         time.sleep(DELAY_LONG)
-        self.paginate_and_scrape()
+        results = self.paginate_and_scrape()
         self.driver.quit()
-        return self.all_pdf_links
+        return results
 
-def send_file_urls(pdf_links):
+def send_results(results):
+    print(results)
     """Send extracted PDF links to the n8n webhook."""
-    if not pdf_links:
+    if not results["pdf_links"]:
         return {"message": "No new PDFs found."}
 
     success_count = 0
     failed_urls = []
 
-    for file_url in pdf_links:
+    for id, file_url in enumerate(results["pdf_links"]):
         payload = {"file_url": file_url}
         try:
-            response = requests.post(WEBHOOK_URL, json=payload, verify=False)
-            if response.status_code == 200:
-                print(f"Sent successfully: {file_url}")
+            #response = requests.post(WEBHOOK_URL, json=payload, verify=False)
+            #if response.status_code == 200:
+            if True:
+                # print(f"Sent successfully: {file_url}")
+                # print(f'{id}, {results["origins"][id]}, {results["case_names"][id]}, {results["pdf_links"][id]}, {results["statuses"][id]}')
                 success_count += 1
             else:
                 print(f"Failed: {file_url}, Status: {response.status_code}")
@@ -142,7 +175,8 @@ def send_file_urls(pdf_links):
 
     return {
         "message": f"Scraper completed! {success_count} PDFs sent successfully.",
-        "failed_urls": failed_urls
+        "failed_urls": failed_urls,
+        "results":results
     }
 
 @app.route("/run-scraper", methods=["POST"])
@@ -153,9 +187,9 @@ def run_scraper():
     print(target_date)
 
     scraper = USCCourtScraper(target_date)
-    pdf_links = scraper.run()
+    results = scraper.run()
     
-    response = send_file_urls(pdf_links)
+    response = send_results(results)
 
     return jsonify(response)
 
