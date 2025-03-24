@@ -67,6 +67,7 @@ class USCCourtScraper:
 
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(DELAY_LONG)
+            print("finished set filter")
 
         except Exception as e:
             print(f"Error filtering data: {e}")
@@ -150,7 +151,7 @@ class USCCourtScraper:
         return results
 
 def send_results(results):
-    print(results)
+    # print(results)
     """Send extracted PDF links to the n8n webhook."""
     if not results["pdf_links"]:
         return {"message": "No new PDFs found."}
