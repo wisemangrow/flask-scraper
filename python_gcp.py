@@ -116,7 +116,7 @@ class USCCourtScraper:
         }
         """Iterate through all pages and collect PDF links."""
         while True:
-            page_data = self.extract_pdf_links()
+            page_data = self.extract_pdf_links()["pdf_links"]
             if not page_data:
                 break
 
