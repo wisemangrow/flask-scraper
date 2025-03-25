@@ -53,17 +53,33 @@ class USCCourtScraper:
             date_field.send_keys(self.target_date)  # Use provided date
             date_field.send_keys(Keys.RETURN)
 
-            # Select "CFC" from the origin filter
-            # origin_xpath = '//*[@id="table_1_2_filter"]/span/div/button'
-            # select_origin_button = WebDriverWait(self.driver, 10).until(
-            #     EC.element_to_be_clickable((By.XPATH, origin_xpath))
-            # )
-            # select_origin_button.click()
+            to_date_field = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "table_1_range_to_0"))
+            )
+            to_date_field.clear()
+            to_date_field.send_keys(self.target_date)  # Use provided date
+            to_date_field.send_keys(Keys.RETURN)
 
-            # cfc_option = WebDriverWait(self.driver, 2).until(
-            #     EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[7]/a'))
-            # )
-            # cfc_option.click()
+            origin_xpath = '//*[@id="table_1_2_filter"]/span/div/button'
+            select_origin_button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, origin_xpath))
+            )
+            select_origin_button.click()
+
+            dct_option = WebDriverWait(self.driver, 2).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[9]/a'))
+            )
+            dct_option.click()
+
+            itc_option = WebDriverWait(self.driver, 2).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[15]/a'))
+            )
+            itc_option.click()
+
+            pto_option = WebDriverWait(self.driver, 2).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="table_1_2_filter"]/span/div/div/ul/li[21]/a'))
+            )
+            pto_option.click()
 
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(DELAY_LONG)
@@ -84,10 +100,14 @@ class USCCourtScraper:
             case_names = []
             pdf_links = []
             statuses = []
+            release_dates = []
+            appeal_numbers = []
             for row in rows:
                 try:
                     td_element = row.find_elements(By.TAG_NAME, "td")
                     origin = td_element[-3].text
+                    appeal_number = td_element[-4].text
+                    release_date = td_element[-5].text
                     case_name = td_element[-2].find_element(By.TAG_NAME, "a").text
                     pdf_link = td_element[-2].find_element(By.TAG_NAME, "a").get_attribute("href")
                     status = td_element[-1].text
@@ -95,6 +115,8 @@ class USCCourtScraper:
                     case_names.append(case_name)
                     pdf_links.append(pdf_link)
                     statuses.append(status)
+                    appeal_numbers.append(appeal_number)
+                    release_dates.append(release_date)
                 except Exception:
                     continue  # Skip rows without PDFs
 
@@ -102,7 +124,9 @@ class USCCourtScraper:
                 "origins": origins,
                 "case_names": case_names,
                 "pdf_links": pdf_links,
-                "statuses": statuses
+                "statuses": statuses,
+                "appeal_numbers": appeal_numbers,
+                "release_dates": release_dates
             }
 
         except Exception as e:
@@ -114,7 +138,9 @@ class USCCourtScraper:
             "origins": [],
             "case_names": [],
             "pdf_links": [],
-            "statuses": []
+            "statuses": [],
+            "release_dates": [],
+            "appeal_numbers": []
         }
         """Iterate through all pages and collect PDF links."""
         while True:
@@ -126,6 +152,8 @@ class USCCourtScraper:
             all_data["case_names"].extend(page_data["case_names"])
             all_data["pdf_links"].extend(page_data["pdf_links"])
             all_data["statuses"].extend(page_data["statuses"])
+            all_data["appeal_numbers"].extend(page_data["appeal_numbers"])
+            all_data["release_dates"].extend(page_data["release_dates"])
             print(f"Collected {len(all_data['pdf_links'])} PDF links so far...")
 
             try:
