@@ -1,1 +1,5 @@
 /venv
+/ipr_docs
+
+*.txt
+.env

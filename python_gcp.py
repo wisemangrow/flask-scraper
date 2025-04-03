@@ -11,11 +11,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime
 import time
+import json
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
 DELAY_SHORT = 2
 DELAY_LONG = 3
+
+client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
 
 # Load Webhook URL from environment variables
 WEBHOOK_URL = "http://127.0.0.1:5678/webhook/automate"
