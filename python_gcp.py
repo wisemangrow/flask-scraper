@@ -15,6 +15,9 @@ import json
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
+import re
+from io import BytesIO
+from PyPDF2 import PdfReader
 
 load_dotenv()
 
@@ -201,6 +204,13 @@ def send_results(results):
             #response = requests.post(WEBHOOK_URL, json=payload, verify=False)
             #if response.status_code == 200:
             if True:
+                if "rule 36" in results["case_names"][id].lower() and "in re" not in results["case_names"][id].lower():
+                    json_string = analyze_pdf(results['pdf_links'][id])
+                    print(json_string)
+                    url = "https://developer.uspto.gov/ptab-api/decisions?proceedingNumber=" + json.loads(json_string)['ipr_number']
+                    response = requests.get(url)
+                    data = response.json()
+                    get_ipr_doc(data)
                 # print(f"Sent successfully: {file_url}")
                 # print(f'{id}, {results["origins"][id]}, {results["case_names"][id]}, {results["pdf_links"][id]}, {results["statuses"][id]}')
                 success_count += 1
@@ -216,6 +226,80 @@ def send_results(results):
         "failed_urls": failed_urls,
         "results":results
     }
+
+def analyze_pdf(pdf_url):
+    try:
+        # Step 1: Download the PDF
+        response = requests.get(pdf_url)
+        response.raise_for_status()
+        pdf = PdfReader(BytesIO(response.content))
+
+        # Step 2: Extract the first few pages of text (to limit tokens)
+        text = ""
+        max_pages = min(3, len(pdf.pages))
+        for i in range(max_pages):
+            page_text = pdf.pages[i].extract_text()
+            if page_text:
+                text += page_text + "\n"
+
+        # Step 3: Create a prompt
+        prompt = (
+            "Extract the IPR number (like IPR2024-01366) and the case ID (like 2023-2080) "
+            "from the following legal document text. Only return the first one of each if multiple exist.\n\n"
+            f"{text}\n\n"
+            "Respond in JSON format like: {\"ipr_number\": \"IPRxxxx-xxxxx\", \"id\": \"xxxx-xxxx\"}"
+        )
+
+        # Step 4: Call OpenAI ChatCompletion using new SDK
+        chat_completion = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0
+        )
+
+        reply = chat_completion.choices[0].message.content
+        print("GPT response:", reply)
+
+        # Step 5: Extract JSON from response
+        match = re.search(r'{.*}', reply, re.DOTALL)
+        if match:
+            return match.group(0)
+        else:
+            return json.dumps({"ipr_number": None, "id": None})
+
+    except Exception as e:
+        print(f"Error analyzing PDF with OpenAI: {e}")
+        return json.dumps({"ipr_number": None, "id": None})
+
+def get_ipr_doc(data):
+    if not data or "results" not in data:
+        print("Invalid data format")
+        return
+
+    for result in data["results"]:
+        try:
+            doc_id = result.get("documentIdentifier")
+            doc_name = result.get("documentName", f"{doc_id}.pdf")
+
+            if not doc_id:
+                print("Missing documentIdentifier, skipping...")
+                continue
+
+            download_url = f"https://developer.uspto.gov/ptab-api/documents/{doc_id}/download"
+            response = requests.get(download_url)
+            response.raise_for_status()
+
+            # Save the PDF locally (in a folder named "ipr_docs")
+            os.makedirs("ipr_docs", exist_ok=True)
+            file_path = os.path.join("ipr_docs", doc_name)
+
+            with open(file_path, "wb") as f:
+                f.write(response.content)
+
+            print(f"Downloaded: {doc_name}")
+
+        except Exception as e:
+            print(f"Error downloading document {result.get('documentIdentifier')}: {e}")
 
 @app.route("/run-scraper", methods=["POST"])
 def run_scraper():
